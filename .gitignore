@@ -133,3 +133,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Datasets
+Data-HDF5/
+preprocessed_data_splits/
