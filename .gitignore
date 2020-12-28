@@ -137,3 +137,6 @@ dmypy.json
 # Datasets
 Data-HDF5/
 preprocessed_data_splits/
+preprocessed_data_splits_for_update/
+recorded_signals/
+update_results/

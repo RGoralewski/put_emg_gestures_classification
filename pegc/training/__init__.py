@@ -51,6 +51,9 @@ def _epoch_train(model: nn.Module, train_gen: DataLoader, device: Any, optimizer
 
     for batch_idx, (X_batch, y_batch) in enumerate(train_gen, start=1):
 
+        for sched in schedulers:
+            sched.step()
+
         if use_mixup:  # Problem: acc will stop being meaningful for training due to that (mse/mae instead?)
             X_batch, y_batch = mixup_batch(X_batch, y_batch, alpha)
 
@@ -65,8 +68,7 @@ def _epoch_train(model: nn.Module, train_gen: DataLoader, device: Any, optimizer
         loss.backward()
         optimizer.step()
 
-        for sched in schedulers:
-            sched.step()
+
 
         print(f'\rEpoch {epoch_idx} [{batch_idx}/{len(train_gen)}]: '
               f'Loss: {loss_tracker.val:.4f} (mean: {loss_tracker.avg:.4f})', end='')
@@ -253,7 +255,7 @@ def update_loop(model_path: str, dataset_dir_path: str, results_dir_path: str, a
                 'epoch': ep}, osp.join(results_dir_path, 'last_epoch_checkpoint.tar'))
 
 
-def fine_tune(model_path: str, data: np.ndarray, label: str, dataset_dir_path: str, results_dir_path: str,
+def fine_tune(model_path: str, data: np.ndarray, label: np.ndarray, dataset_dir_path: str, results_dir_path: str,
                 architecture: str, epochs: int = 100, batch_size: int = 256, shuffle: bool = True, nb_res_blocks: int = 6,
                 res_block_per_expansion: int = 2, base_feature_maps: int = 16, use_mixup=True, alpha: float = 1,
                 val_split_size: float = 0.15, base_lr: float = 1e-4, max_lr: float = 1e-2,
