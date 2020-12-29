@@ -77,14 +77,10 @@ def on_message(client, userdata, message):
             if len(encoded_channels) == num_channels * BASE64_BYTES_PER_SAMPLE:
                 channels_list = base64_to_list_of_channels(encoded_channels, BASE64_BYTES_PER_SAMPLE)
                 scaled_data = np.asarray(channels_list).T * SCALE_FACTOR_EMG
-                # TODO add to the data info about gesture
-                with open(f"{data_directory}/{int(script_start_time)}/X.csv", 'a') as f:
+                with open(f"{data_directory}/{int(script_start_time)}/{gestures_classes[current_gesture_idx]}.csv",
+                          'a') as f:
                     np.savetxt(f, scaled_data, delimiter=',')
-                    #print("Packet saved to file, time: " + str(time.time() - script_start_time))
-                with open(f"{data_directory}/{int(script_start_time)}/y.csv", 'a') as f:
-                    one_hot_label = np.asarray(
-                        [g == gestures_classes[current_gesture_idx] for g in gestures_classes])
-                    np.savetxt(f, one_hot_label.reshape(-1, len(gestures_classes)), delimiter=',')
+                    # print("Packet saved to file, time: " + str(time.time() - script_start_time))
 
         # Print the number of samples received
         time_elapsed = time.time() - last_sampling_rate_print_time
