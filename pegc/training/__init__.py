@@ -28,7 +28,7 @@ def _validate(model: nn.Module, loss_fnc: Callable, val_gen: DataLoader, device:
         for X_batch, y_batch in val_gen:
             X_batch = X_batch.to(device)
             y_batch = y_batch.to(device)
-            batch_pred = model(X_batch[:, 8:16, :])  # shape = [batch, channels, window_size]
+            batch_pred = model(X_batch)  # [:, 8:16, :])  # shape = [batch, channels, window_size]
             loss = loss_fnc(batch_pred, y_batch)
 
             loss_tracker.update(loss.item(), len(batch_pred))
@@ -60,7 +60,7 @@ def _epoch_train(model: nn.Module, train_gen: DataLoader, device: Any, optimizer
         X_batch = X_batch.to(device)
         y_batch = y_batch.to(device)
 
-        batch_y_pred = model(X_batch[:, 8:16, :])  # shape = [batch, channels, window_size]
+        batch_y_pred = model(X_batch)  # [:, 8:16, :])  # shape = [batch, channels, window_size]
         loss = loss_fnc(batch_y_pred, y_batch)
         loss_tracker.update(loss.item(), len(batch_y_pred))
 

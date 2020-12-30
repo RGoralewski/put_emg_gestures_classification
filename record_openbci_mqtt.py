@@ -37,60 +37,73 @@ def on_message(client, userdata, message):
     global gestures_classes
     global current_gesture_idx
     global current_gesture_start_time
-    global gest_duration
+
+    global trajectories
+    global trajectories_scenarios
+    global current_trajectory_idx
+    global gest_durations
     global time_for_gest_change
 
     # Calculate duration of the current gesture
     curr_gest_dur = time.time() - current_gesture_start_time
 
     # Change a gesture if time for it elapsed and say it
-    if curr_gest_dur > gest_duration:
+    if curr_gest_dur > gest_durations[trajectories[current_trajectory_idx]] + time_for_gest_change:
         current_gesture_idx += 1
         current_gesture_start_time = time.time()
-        if current_gesture_idx >= len(gestures_classes):
-            # Stop subscriber loop
-            print("Recording ends, unsubscribing...")
-            client.loop_stop()
+        if current_gesture_idx >= len(trajectories_scenarios[trajectories[current_trajectory_idx]]):
+            # Change trajectory
+            current_trajectory_idx += 1
+            current_gesture_idx = 0
 
-            print("Program ends...")
-            sys.exit()
+            # If it's the last trajectory
+            if current_trajectory_idx >= len(trajectories):
+                # Stop subscriber loop
+                print("Recording ends, unsubscribing...")
+                client.loop_stop()
+
+                print("Program ends...")
+                sys.exit()
 
         # Tell user about the gesture
-        os.system(f'spd-say "{gestures_classes[current_gesture_idx]}"')
+        cg = trajectories_scenarios[trajectories[current_trajectory_idx]][current_gesture_idx]
+        os.system(f'spd-say "{cg}"')
 
-    # Save data if time for transition elapsed
-    if curr_gest_dur > time_for_gest_change:
+    # Current gesture
+    cg = trajectories_scenarios[trajectories[current_trajectory_idx]][current_gesture_idx]
 
-        message_as_string = str(message.payload.decode("utf-8"))
-        message_as_string = ''.join(message_as_string.split())  # remove all white characters
+    # Decode a message
+    message_as_string = str(message.payload.decode("utf-8"))
+    message_as_string = ''.join(message_as_string.split())  # remove all white characters
 
-        # Decode the JSON
-        packet = json.loads(message_as_string)
+    # Decode the JSON
+    packet = json.loads(message_as_string)
 
-        # Read number of channels
-        num_channels = packet["channels"]
+    # Read number of channels
+    num_channels = packet["channels"]
 
-        # Add a number of samples to the counter
-        samples_counter += packet["packets"]
+    # Add a number of samples to the counter
+    samples_counter += packet["packets"]
 
+    # Save data if time for transition elapsed and it's not the 'relax' time
+    if (curr_gest_dur > time_for_gest_change) and (cg != 'relax'):
         for encoded_channels in packet["data"]:
             if len(encoded_channels) == num_channels * BASE64_BYTES_PER_SAMPLE:
                 channels_list = base64_to_list_of_channels(encoded_channels, BASE64_BYTES_PER_SAMPLE)
                 scaled_data = np.asarray(channels_list).T * SCALE_FACTOR_EMG
-                with open(f"{data_directory}/{int(script_start_time)}/{gestures_classes[current_gesture_idx]}.csv",
-                          'a') as f:
+                with open(f"{data_directory}/{trajectories[current_trajectory_idx]}/{cg}.csv", 'a') as f:
                     np.savetxt(f, scaled_data, delimiter=',')
                     # print("Packet saved to file, time: " + str(time.time() - script_start_time))
 
-        # Print the number of samples received
-        time_elapsed = time.time() - last_sampling_rate_print_time
-        if time_elapsed >= 1.0:
-            print("***************************")
-            print("Samples received: " + str(samples_counter))
-            print("Time from the last print: " + str(time_elapsed))
-            print("***************************")
-            last_sampling_rate_print_time = time.time()
-            samples_counter = 0
+    # Print the number of samples received
+    time_elapsed = time.time() - last_sampling_rate_print_time
+    if time_elapsed >= 1.0:
+        print("***************************")
+        print("Samples received: " + str(samples_counter))
+        print("Time from the last print: " + str(time_elapsed))
+        print("***************************")
+        last_sampling_rate_print_time = time.time()
+        samples_counter = 0
 
 
 # MQTT data
@@ -112,27 +125,39 @@ last_sampling_rate_print_time = script_start_time
 gestures_classes = ['idle', 'fist', 'flexion', 'extension', 'pinch_index', 'pinch_middle',
                     'pinch_ring', 'pinch_small']
 
+# Trajectories
+trajectories = ["sequential", "repeats short", "repeats long"]
+n_repeats = 2
+repeats_traj = []
+for g in gestures_classes:
+    repeats_traj += [g, 'relax'] * n_repeats
+trajectories_scenarios = {"sequential": gestures_classes * n_repeats, "repeats short": repeats_traj,
+                          "repeats long": repeats_traj}
+current_trajectory_idx = 0
+
+# Duration of one gesture and time for change
+gest_durations = {"sequential": 3, "repeats short": 1,
+                  "repeats long": 3}
+time_for_gest_change = 1
+
 # Current gesture
 current_gesture_idx = 0
-os.system(f'spd-say "{gestures_classes[current_gesture_idx]}"')
+os.system(f'spd-say "{trajectories_scenarios[trajectories[current_trajectory_idx]][current_gesture_idx]}"')
 
 # Time of current gesture beginning
 current_gesture_start_time = time.time()
-
-# Duration of one gesture and time for change
-gest_duration = 5
-time_for_gest_change = 1
 
 # Samples counter
 samples_counter = 0
 
 # Create a dir for data
 session_time = time.localtime()
-data_directory = "recorded_signals"
+data_directory = "openbci_recorded_signals/30.12.20_test1"
 if not os.path.exists(data_directory):
     os.mkdir(data_directory)
-if not os.path.exists(f"{data_directory}/{int(script_start_time)}"):
-    os.mkdir(f"{data_directory}/{int(script_start_time)}")
+for t in trajectories:
+    if not os.path.exists(f"{data_directory}/{t}"):
+        os.mkdir(f"{data_directory}/{t}")
 
 # Create a client
 print("Creating new subscriber instance")

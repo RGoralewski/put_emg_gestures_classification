@@ -140,3 +140,6 @@ preprocessed_data_splits/
 preprocessed_data_splits_for_update/
 recorded_signals/
 update_results/
+openbci_first_update_results/
+openbci_preprocessed_data/
+openbci_recorded_signals/

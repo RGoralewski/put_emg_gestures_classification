@@ -1,8 +1,8 @@
 {
   "architecture":  "resnet",
   "force_cpu": false,
-  "epochs": 30,
-  "batch_size": 64,
+  "epochs": 20,
+  "batch_size": 32,
   "shuffle": true,
   "nb_res_blocks": 6,
   "res_block_per_expansion": 2,
@@ -13,7 +13,7 @@
   "base_lr": 1e-4,
   "max_lr": 1e-2,
   "use_early_stopping": true,
-  "early_stopping_patience": 15,
+  "early_stopping_patience": 10,
   "optimizer": "adam",
   "use_lookahead": true
 }
