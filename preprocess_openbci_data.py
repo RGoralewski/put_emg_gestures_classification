@@ -2,6 +2,7 @@ import numpy as np
 from scipy import signal
 import os
 import click
+from tqdm import tqdm
 
 
 def filter_signals(s: np.ndarray, fs: int) -> np.ndarray:
@@ -23,8 +24,9 @@ def filter_signals(s: np.ndarray, fs: int) -> np.ndarray:
 
 @click.command()
 @click.argument('data_dir_path', type=click.Path(file_okay=False, exists=True))
+@click.argument('session_dir', type=str)
 @click.argument('preprocessed_data_dir_path', type=click.Path(file_okay=False))
-def preprocess_openbci_data(data_dir_path: str, preprocessed_data_dir_path: str, test_size: int = 0.2) -> None:
+def preprocess_openbci_data(data_dir_path: str, session_dir: str, preprocessed_data_dir_path: str) -> None:
     fs = 1000  # sampling frequency 1000Hz
     window_length = 200  # ms
     stride = window_length
@@ -32,66 +34,76 @@ def preprocess_openbci_data(data_dir_path: str, preprocessed_data_dir_path: str,
     gestures_classes = ['idle', 'fist', 'flexion', 'extension', 'pinch_index', 'pinch_middle',
                         'pinch_ring', 'pinch_small']
 
-    for session_dir in os.listdir(data_dir_path):
-        session_dir_path = os.path.join(data_dir_path, session_dir)
+    possible_splits = {'split_0': {'train': ('sequential', 'repeats_short'), 'test': 'repeats_long'},
+                       'split_1': {'train': ('sequential', 'repeats_long'), 'test': 'repeats_short'},
+                       'split_2': {'train': ('repeats_short', 'repeats_long'), 'test': 'sequential'}}
 
-        for split_dir in os.listdir(session_dir_path):
-            split_dir_path = os.path.join(session_dir_path, split_dir)
+    # Dict for organize data by trajectories
+    session_data = {}
 
-            output_test_X = []
-            output_train_X = []
-            output_test_y = []
-            output_train_y = []
+    results_dir = os.path.join(preprocessed_data_dir_path, session_dir)
 
-            for g in gestures_classes:
-                file_name = f"{g}.csv"
+    for trajectory_dir in tqdm(('repeats_long', 'repeats_short', 'sequential')):
+        trajectory_dir_path = os.path.join(data_dir_path, session_dir, trajectory_dir)
 
-                # Load signals
-                loaded_signal = np.loadtxt(os.path.join(split_dir_path, file_name), delimiter=',')
+        X = []
+        y = []
 
-                # Do filtering
-                filtered_signal = filter_signals(loaded_signal, fs)
+        for g in gestures_classes:
+            file_name = f"{g}.csv"
 
-                # Replace 8th channel with 7th channel (it will be two copies of 7th channel)
-                filtered_signal[:, 7] = filtered_signal[:, 6]
+            # Load signals
+            loaded_signal = np.loadtxt(os.path.join(trajectory_dir_path, file_name), delimiter=',')
 
-                # Calculate new dimensions
-                n_windows = filtered_signal.shape[0] // window_length
-                n_channels = filtered_signal.shape[1]
+            # Do filtering
+            filtered_signal = filter_signals(loaded_signal, fs)
 
-                # Reshape by windows
-                windowed_signal = np.resize(filtered_signal, (n_windows, window_length, n_channels))
+            # Replace 8th channel with 7th channel (it will be two copies of 7th channel)
+            filtered_signal[:, 7] = filtered_signal[:, 6]
 
-                # Cut the first two windows - filter response has to be fixed
-                # In an online preprocessing use np.concatenate((data,)*3, axis=0) before filtering and after it
-                # reject the first and the second copy of the signal
-                # 200ms window X3 => 600ms (three copies) => filtering => reject first 400ms => you've got filtered data
-                final_windowed_signal = windowed_signal[2:]
+            # Calculate new dimensions
+            n_windows = filtered_signal.shape[0] // window_length
+            n_channels = filtered_signal.shape[1]
 
-                # Shuffle windows
-                np.random.shuffle(final_windowed_signal)
+            # Reshape by windows
+            windowed_signal = np.resize(filtered_signal, (n_windows, window_length, n_channels))
 
-                # Update number of windows
-                n_windows = final_windowed_signal.shape[0]
+            # Cut the first two windows - filter response has to be fixed
+            # In an online preprocessing use np.concatenate((data,)*3, axis=0) before filtering and after it
+            # reject the first and the second copy of the signal
+            # 200ms window X3 => 600ms (three copies) => filtering => reject first 400ms => you've got filtered data
+            final_windowed_signal = windowed_signal[2:]
 
-                # Add data to the lists
-                output_train_X.append(final_windowed_signal[int(n_windows*test_size):])
-                output_test_X.append(final_windowed_signal[:int(n_windows*test_size)])
+            # Shuffle windows
+            # np.random.shuffle(final_windowed_signal)
 
-                # Add labels (one hot) to the lists
-                one_hot_label = np.array([int(g == x) for x in gestures_classes])
-                n_train_windows = output_train_X[-1].shape[0]
-                n_test_windows = output_test_X[-1].shape[0]
-                output_train_y.append(np.tile(one_hot_label, (n_train_windows, 1)))
-                output_test_y.append(np.tile(one_hot_label, (n_test_windows, 1)))
+            # Add data to the lists
+            X.append(final_windowed_signal)
 
-            # Concatenate data in lists and save it to the files .npz
-            results_dir_path = os.path.join(preprocessed_data_dir_path, session_dir, split_dir)
-            os.makedirs(results_dir_path)
-            np.savez_compressed(os.path.join(results_dir_path, 'X_train.npz'), arr=np.concatenate(output_train_X))
-            np.savez_compressed(os.path.join(results_dir_path, 'X_test.npz'), arr=np.concatenate(output_test_X))
-            np.savez_compressed(os.path.join(results_dir_path, 'y_train.npz'), arr=np.concatenate(output_train_y))
-            np.savez_compressed(os.path.join(results_dir_path, 'y_test.npz'), arr=np.concatenate(output_test_y))
+            # Add labels (one hot) to the lists
+            one_hot_label = np.array([int(g == x) for x in gestures_classes])
+            y.append(np.tile(one_hot_label, (final_windowed_signal.shape[0], 1)))
+
+        # Save in session data dict
+        session_data[trajectory_dir] = {'X': np.concatenate(X), 'y': np.concatenate(y)}
+
+    # Organize data in splits
+    for split_name, train_test_info in possible_splits.items():
+        X_train = np.concatenate([session_data[train_test_info['train'][0]]['X'],
+                                  session_data[train_test_info['train'][1]]['X']])
+        y_train = np.concatenate([session_data[train_test_info['train'][0]]['y'],
+                                  session_data[train_test_info['train'][1]]['y']])
+
+        X_test = session_data[train_test_info['test']]['X']
+        y_test = session_data[train_test_info['test']]['y']
+
+        # Save data to the files .npz
+        cur_split_dst_dir_path = os.path.join(results_dir, split_name)
+        os.makedirs(cur_split_dst_dir_path, exist_ok=True)
+        np.savez_compressed(os.path.join(cur_split_dst_dir_path, 'X_train.npz'), arr=X_train)
+        np.savez_compressed(os.path.join(cur_split_dst_dir_path, 'X_test.npz'), arr=X_test)
+        np.savez_compressed(os.path.join(cur_split_dst_dir_path, 'y_train.npz'), arr=y_train)
+        np.savez_compressed(os.path.join(cur_split_dst_dir_path, 'y_test.npz'), arr=y_test)
 
 
 if __name__ == '__main__':

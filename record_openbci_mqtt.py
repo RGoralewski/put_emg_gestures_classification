@@ -126,18 +126,18 @@ gestures_classes = ['idle', 'fist', 'flexion', 'extension', 'pinch_index', 'pinc
                     'pinch_ring', 'pinch_small']
 
 # Trajectories
-trajectories = ["sequential", "repeats short", "repeats long"]
+trajectories = ["sequential", "repeats_short", "repeats_long"]
 n_repeats = 2
 repeats_traj = []
 for g in gestures_classes:
     repeats_traj += [g, 'relax'] * n_repeats
-trajectories_scenarios = {"sequential": gestures_classes * n_repeats, "repeats short": repeats_traj,
-                          "repeats long": repeats_traj}
+trajectories_scenarios = {"sequential": gestures_classes * n_repeats, "repeats_short": repeats_traj,
+                          "repeats_long": repeats_traj}
 current_trajectory_idx = 0
 
 # Duration of one gesture and time for change
-gest_durations = {"sequential": 3, "repeats short": 1,
-                  "repeats long": 3}
+gest_durations = {"sequential": 3, "repeats_short": 1,
+                  "repeats_long": 3}
 time_for_gest_change = 1
 
 # Current gesture
@@ -152,7 +152,7 @@ samples_counter = 0
 
 # Create a dir for data
 session_time = time.localtime()
-data_directory = "openbci_recorded_signals/30.12.20_test1"
+data_directory = "openbci_recorded_signals/31.12.20_test1"
 if not os.path.exists(data_directory):
     os.mkdir(data_directory)
 for t in trajectories:
