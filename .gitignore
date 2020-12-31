@@ -145,3 +145,6 @@ openbci_first_preprocessed_data/
 openbci_recorded_signals/
 openbci_second_update_results/
 openbci_second_preprocessed_data/
+results_output_dir_path/
+openbci_first_trained_model.tar
+put_trained_model.tar
