@@ -80,20 +80,19 @@ def run_experiment(examinations_prepared_train_test_splits_dir_path: str,
             update_loop(current_model_path, split_dir_path, results_split_dir_path, **training_config)
 
             # Save updated model path
-            current_model_path = osp.join(results_split_dir_path, 'last_epoch_checkpoint.tar')
+            # current_model_path = osp.join(results_split_dir_path, 'last_epoch_checkpoint.tar')
 
             # Add test evaluation results to summary csv.
             train_metrics = load_json(osp.join(results_split_dir_path, 'training_losses_and_metrics.json'))['epochs_stats']
             test_eval_metrics = load_json(osp.join(results_split_dir_path, 'test_set_stats.json'))
-            # split_name = f'train_{"_".join(possible_splits[split_dir]["train"])}_test_{possible_splits[split_dir]["test"]}'
-            split_name = split_dir
+            split_name = f'train_{"_".join(possible_splits[split_dir]["train"])}_test_{possible_splits[split_dir]["test"]}'
             cm = np.array(test_eval_metrics['cm'])
             clf_report = classification_report(cm, gestures_classes)
             final_eval_results.append([examination_id, split_name, train_metrics[-1]['val_loss'], train_metrics[-1]['val_acc'],
                                        test_eval_metrics['val_loss'], test_eval_metrics['val_acc'], test_eval_metrics['cm']] +
                                        [clf_report[k] for k in sorted(clf_report)])
 
-    print(f"Final model path: {current_model_path}")
+    # print(f"Final model path: {current_model_path}")
 
     res_df = pd.DataFrame(final_eval_results, columns=['examination_id', 'split_name', 'val_loss', 'val_acc',
                                                        'test_loss', 'test_acc', 'test_cm'] + sorted(list(clf_report.keys())))

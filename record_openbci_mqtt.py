@@ -85,8 +85,8 @@ def on_message(client, userdata, message):
     # Add a number of samples to the counter
     samples_counter += packet["packets"]
 
-    # Save data if time for transition elapsed and it's not the 'relax' time
-    if (curr_gest_dur > time_for_gest_change) and (cg != 'relax'):
+    # Save data if time for transition elapsed
+    if curr_gest_dur > time_for_gest_change:
         for encoded_channels in packet["data"]:
             if len(encoded_channels) == num_channels * BASE64_BYTES_PER_SAMPLE:
                 channels_list = base64_to_list_of_channels(encoded_channels, BASE64_BYTES_PER_SAMPLE)
@@ -127,10 +127,11 @@ gestures_classes = ['idle', 'fist', 'flexion', 'extension', 'pinch_index', 'pinc
 
 # Trajectories
 trajectories = ["sequential", "repeats_short", "repeats_long"]
-n_repeats = 2
+n_repeats = 3
 repeats_traj = []
 for g in gestures_classes:
-    repeats_traj += [g, 'relax'] * n_repeats
+    if g != 'idle':
+        repeats_traj += [g, 'idle'] * n_repeats
 trajectories_scenarios = {"sequential": gestures_classes * n_repeats, "repeats_short": repeats_traj,
                           "repeats_long": repeats_traj}
 current_trajectory_idx = 0
@@ -152,7 +153,7 @@ samples_counter = 0
 
 # Create a dir for data
 session_time = time.localtime()
-data_directory = "openbci_recorded_signals/31.12.20_test1"
+data_directory = "openbci_recorded_signals/31.12.20_02"
 if not os.path.exists(data_directory):
     os.mkdir(data_directory)
 for t in trajectories:
