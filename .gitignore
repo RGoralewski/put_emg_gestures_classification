@@ -150,5 +150,4 @@ openbci_first_trained_model.tar
 put_trained_model.tar
 openbci_third_preprocessed_data/
 openbci_third_update_results/
-openbci_second_trained_model.tar
-openbci_third_trained_model.tar
+openbci*.tar
