@@ -2,7 +2,7 @@
   "architecture":  "resnet",
   "force_cpu": false,
   "epochs": 20,
-  "batch_size": 32,
+  "batch_size": 1,
   "shuffle": true,
   "nb_res_blocks": 6,
   "res_block_per_expansion": 2,

@@ -26,8 +26,8 @@ def _validate(model: nn.Module, loss_fnc: Callable, val_gen: DataLoader, device:
     y_true, y_pred = [], []
     with torch.no_grad():
         for X_batch, y_batch in val_gen:
-            X_batch = X_batch.to(device)
-            y_batch = y_batch.to(device)
+            X_batch = X_batch.to(device).float()
+            y_batch = y_batch.to(device).float()
             batch_pred = model(X_batch)  # [:, 8:16, :])  # shape = [batch, channels, window_size]
             loss = loss_fnc(batch_pred, y_batch)
 
@@ -44,6 +44,7 @@ def _validate(model: nn.Module, loss_fnc: Callable, val_gen: DataLoader, device:
     return {'val_loss': loss_tracker.avg, 'val_acc': acc, 'cm': cm.tolist()}
 
 
+
 def _epoch_train(model: nn.Module, train_gen: DataLoader, device: Any, optimizer: Any, loss_fnc: Callable,
                  epoch_idx: int, use_mixup: bool, alpha: float, schedulers: Iterable[Any]) -> Dict[str, float]:
     model.train()
@@ -57,8 +58,8 @@ def _epoch_train(model: nn.Module, train_gen: DataLoader, device: Any, optimizer
         if use_mixup:  # Problem: acc will stop being meaningful for training due to that (mse/mae instead?)
             X_batch, y_batch = mixup_batch(X_batch, y_batch, alpha)
 
-        X_batch = X_batch.to(device)
-        y_batch = y_batch.to(device)
+        X_batch = X_batch.to(device).float()
+        y_batch = y_batch.to(device).float()
 
         batch_y_pred = model(X_batch)  # [:, 8:16, :])  # shape = [batch, channels, window_size]
         loss = loss_fnc(batch_y_pred, y_batch)
@@ -67,8 +68,6 @@ def _epoch_train(model: nn.Module, train_gen: DataLoader, device: Any, optimizer
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
-
 
         print(f'\rEpoch {epoch_idx} [{batch_idx}/{len(train_gen)}]: '
               f'Loss: {loss_tracker.val:.4f} (mean: {loss_tracker.avg:.4f})', end='')
@@ -255,7 +254,7 @@ def update_loop(model_path: str, dataset_dir_path: str, results_dir_path: str, a
                 'epoch': ep}, osp.join(results_dir_path, 'last_epoch_checkpoint.tar'))
 
 
-def fine_tune(model_path: str, data: np.ndarray, label: np.ndarray, dataset_dir_path: str, results_dir_path: str,
+def fine_tune(model_path: nn.Module, data: np.ndarray, label: np.ndarray,
                 architecture: str, epochs: int = 100, batch_size: int = 256, shuffle: bool = True, nb_res_blocks: int = 6,
                 res_block_per_expansion: int = 2, base_feature_maps: int = 16, use_mixup=True, alpha: float = 1,
                 val_split_size: float = 0.15, base_lr: float = 1e-4, max_lr: float = 1e-2,

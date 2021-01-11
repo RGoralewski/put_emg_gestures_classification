@@ -153,7 +153,7 @@ samples_counter = 0
 
 # Create a dir for data
 session_time = time.localtime()
-data_directory = "openbci_recorded_signals/01.01.21_01"
+data_directory = "openbci_recorded_signals/11.01.21_01"
 if not os.path.exists(data_directory):
     os.mkdir(data_directory)
 for t in trajectories:
