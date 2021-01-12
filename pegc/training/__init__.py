@@ -9,14 +9,14 @@ from torch import nn
 from torchsummary import summary  # another extension, a'la keras model.summary funtion
 from torch.utils.data import DataLoader
 
-from pegc.models import Resnet1D
-from pegc import constants
-from pegc.training.utils import load_full_dataset, initialize_random_seeds, mixup_batch, AverageMeter, \
+from ..models import Resnet1D
+from .. import constants
+from .utils import load_full_dataset, initialize_random_seeds, mixup_batch, AverageMeter, \
     EarlyStopping, EarlyStoppingSignal, ModelCheckpoint, save_json
-from pegc.training.clr import CyclicLR
-from pegc.training.radam import RAdam
-from pegc.training.lookahead import Lookahead
-from pegc.generators import PUTEEGGesturesDataset
+from .clr import CyclicLR
+from .radam import RAdam
+from .lookahead import Lookahead
+from ..generators import PUTEEGGesturesDataset
 
 
 def _validate(model: nn.Module, loss_fnc: Callable, val_gen: DataLoader, device: Any) -> Dict[str, float]:
@@ -69,8 +69,10 @@ def _epoch_train(model: nn.Module, train_gen: DataLoader, device: Any, optimizer
         loss.backward()
         optimizer.step()
 
+        '''
         print(f'\rEpoch {epoch_idx} [{batch_idx}/{len(train_gen)}]: '
               f'Loss: {loss_tracker.val:.4f} (mean: {loss_tracker.avg:.4f})', end='')
+        '''
 
     return {'loss': loss_tracker.avg}
 
@@ -253,40 +255,3 @@ def update_loop(model_path: str, dataset_dir_path: str, results_dir_path: str, a
                 'optimizer_state_dict': optimizer.state_dict(),
                 'epoch': ep}, osp.join(results_dir_path, 'last_epoch_checkpoint.tar'))
 
-
-def fine_tune(model_path: nn.Module, data: np.ndarray, label: np.ndarray,
-                architecture: str, epochs: int = 100, batch_size: int = 256, shuffle: bool = True, nb_res_blocks: int = 6,
-                res_block_per_expansion: int = 2, base_feature_maps: int = 16, use_mixup=True, alpha: float = 1,
-                val_split_size: float = 0.15, base_lr: float = 1e-4, max_lr: float = 1e-2,
-                use_early_stopping: bool = True, early_stopping_patience: int = 15, optimizer: str = 'radam',
-                use_lookahead: bool = True
-              ):
-    device = torch.device('cpu')
-
-    architectures_lookup_table = {'resnet': Resnet1D}
-    optimizers_lookup_table = {'adam': torch.optim.Adam, 'radam': RAdam}
-    assert architecture in architectures_lookup_table, 'Specified model architecture unknown!'
-    assert optimizer in optimizers_lookup_table, 'Specified optimizer unknown!'
-    initialize_random_seeds(constants.RANDOM_SEED)
-
-    # Create specified model.
-    model = architectures_lookup_table[architecture](constants.DATASET_FEATURES_SHAPE[0], constants.NB_DATASET_CLASSES,
-                                                     nb_res_blocks, res_block_per_expansion,
-                                                     base_feature_maps).to(device)
-
-    # Optimizer setup.
-    base_opt = optimizers_lookup_table[optimizer](model.parameters(), lr=base_lr)
-    optimizer = Lookahead(base_opt, k=5, alpha=0.5) if use_lookahead else base_opt
-
-    # Load model and optimizer from checkpoint
-    checkpoint = torch.load(model_path)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-
-    # Ensure these layers are in training mode
-    model.train()
-
-    summary(model, input_size=constants.DATASET_FEATURES_SHAPE)  # Shape without including batch.
-
-    # Training itself.
-    loss_fnc = torch.nn.MultiLabelSoftMarginLoss(reduction='mean')

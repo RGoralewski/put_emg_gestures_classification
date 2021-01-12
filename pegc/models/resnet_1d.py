@@ -1,6 +1,6 @@
 from torch import nn
 
-from pegc.models.utils import _get_padding, GlobalAveragePooling1D
+from .utils import _get_padding, GlobalAveragePooling1D
 
 
 class Triple1DConvResBlock(nn.Module):

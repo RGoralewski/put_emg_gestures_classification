@@ -1,4 +1,4 @@
-from pegc.models.resnet_1d import Resnet1D
+from .resnet_1d import Resnet1D
 
 
 # General notes for all pytorch models:
