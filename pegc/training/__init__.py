@@ -44,16 +44,12 @@ def _validate(model: nn.Module, loss_fnc: Callable, val_gen: DataLoader, device:
     return {'val_loss': loss_tracker.avg, 'val_acc': acc, 'cm': cm.tolist()}
 
 
-
 def _epoch_train(model: nn.Module, train_gen: DataLoader, device: Any, optimizer: Any, loss_fnc: Callable,
                  epoch_idx: int, use_mixup: bool, alpha: float, schedulers: Iterable[Any]) -> Dict[str, float]:
     model.train()
     loss_tracker = AverageMeter()
 
     for batch_idx, (X_batch, y_batch) in enumerate(train_gen, start=1):
-
-        for sched in schedulers:
-            sched.step()
 
         if use_mixup:  # Problem: acc will stop being meaningful for training due to that (mse/mae instead?)
             X_batch, y_batch = mixup_batch(X_batch, y_batch, alpha)
@@ -68,6 +64,9 @@ def _epoch_train(model: nn.Module, train_gen: DataLoader, device: Any, optimizer
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
+        for sched in schedulers:
+            sched.step()
 
         '''
         print(f'\rEpoch {epoch_idx} [{batch_idx}/{len(train_gen)}]: '
